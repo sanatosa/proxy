@@ -241,6 +241,29 @@
       font-size: 0.98rem;
       margin: 0.7em 0 0.5em 0;
     }
+    /* Spinner */
+    .spinner-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 2.7rem 0 2.4rem 0;
+      font-size: 1.1rem;
+      color: #295ea8;
+      min-height: 100px;
+    }
+    .spinner {
+      width: 43px;
+      height: 43px;
+      border: 5px solid #e7eefe;
+      border-top: 5px solid #295ea8;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin-bottom: 1.1em;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0);}
+      100% { transform: rotate(360deg);}
+    }
     @media (max-width: 600px) {
       .container {
         padding: 0.4rem;
@@ -273,7 +296,6 @@
     const PROXY_BASE = "https://proxy-8i4b.onrender.com/proxy";
     const LIMITE_RESULTADOS = 30;
 
-    // Palabras a ignorar en búsqueda de similares
     const palabras_ignorar = new Set([
       "disfraz", "disfraces", "b.sol/", "set", "b/sol", "b/sol/cart", "b/slp", "slp", "sol", "b/cart", "cart", "cm",
       "tubo", "sol/gorra", "niño", "niña", "talla", "adulto", "para", "de", "el", "la", "los",
@@ -299,7 +321,6 @@
     async function buscarArticulos(termino) {
       let results = [];
       let limiteAlcanzado = false;
-
       // Si es código numérico exacto, buscar por código
       if (/^\d+$/.test(termino.trim())) {
         let url = `${PROXY_BASE}/articulos/${termino}`;
@@ -331,7 +352,6 @@
           }
         }
       }
-
       // Además, buscar por patrón en la descripción
       if (!/^\d+$/.test(termino.trim()) || results.length === 0) {
         let url = `${PROXY_BASE}/articulos/descripcion/${encodeURIComponent(termino)}`;
@@ -369,15 +389,27 @@
     // Estado
     let ultimosArticulos = [];
     let searchLimiteAlcanzado = false;
-    let productoDetalle = null; // Artículo actual en detalle
+    let productoDetalle = null;
     let fotosCache = {};
     let ultimaBusqueda = "";
 
-    // Render
+    function mostrarSpinner(texto="Cargando...") {
+      document.getElementById("results").innerHTML = `
+        <div class="spinner-container">
+          <div class="spinner"></div>
+          <div>${texto}</div>
+        </div>
+      `;
+    }
+
     async function renderResults() {
       const resultsDiv = document.getElementById("results");
       resultsDiv.innerHTML = "";
       if (productoDetalle) {
+        mostrarSpinner("Cargando producto...");
+        // Espera breve para mostrar el spinner (UX)
+        await new Promise(r=>setTimeout(r,80));
+        resultsDiv.innerHTML = "";
         resultsDiv.appendChild(await createDetallePantalla(productoDetalle));
         return;
       }
@@ -421,7 +453,6 @@
         </div>`;
     }
 
-    // Pantalla de detalle grande + similares
     async function createDetallePantalla(articulo) {
       let div = document.createElement("div");
       div.className = "pantalla-detalle";
@@ -443,13 +474,13 @@
         <div id="similaresContainer"></div>
       `;
       // Cargar similares
+      mostrarSpinner("Cargando similares...");
       let similares = [];
       let limiteSimilares = false;
       if (Array.isArray(articulo._similares)) {
         similares = articulo._similares;
         limiteSimilares = articulo._limiteSimilares;
       } else {
-        // Comparar con otros de la búsqueda previa
         const palabrasClave = new Set(extraerPalabrasClave(articulo.descripcion));
         for (let i = 0; i < ultimosArticulos.length; i++) {
           const a2 = ultimosArticulos[i];
@@ -463,16 +494,12 @@
           }
         }
       }
-      // Precarga fotos
       for (let sim of similares) {
         if (!fotosCache[sim.codigo]) {
           fotosCache[sim.codigo] = await getArticuloFoto(sim.codigo) || getSinImagenSVG();
         }
       }
-      // Similares
-      document.body.offsetHeight; // Layout hack para evitar flicker
-      let similaresHTML = createSimilaresHTML(similares, limiteSimilares);
-      div.querySelector("#similaresContainer").innerHTML = similaresHTML;
+      div.querySelector("#similaresContainer").innerHTML = createSimilaresHTML(similares, limiteSimilares);
       return div;
     }
 
@@ -514,14 +541,13 @@
       e.preventDefault();
       const termino = document.getElementById("searchInput").value.trim();
       const resultsDiv = document.getElementById("results");
-      resultsDiv.innerHTML = "";
       ultimosArticulos = [];
       fotosCache = {};
       productoDetalle = null;
       searchLimiteAlcanzado = false;
       ultimaBusqueda = termino;
       if (!termino) return;
-      resultsDiv.innerHTML = "<div class='no-result'>Buscando...</div>";
+      mostrarSpinner("Buscando artículos...");
       try {
         const { results, limiteAlcanzado } = await buscarArticulos(termino);
         ultimosArticulos = results;
@@ -543,6 +569,7 @@
         let idx = card.getAttribute('data-idx');
         if (idx == null) return;
         productoDetalle = ultimosArticulos[Number(idx)];
+        mostrarSpinner("Cargando producto...");
         await renderResults();
         return;
       }
@@ -551,10 +578,8 @@
       if (similar) {
         let codigo = similar.getAttribute('data-codigo');
         if (!codigo) return;
-        // Buscar ese artículo (en resultados o en similares)
         let art = ultimosArticulos.find(a => a.codigo == codigo);
         if (!art) {
-          // Si viene de búsqueda de similares por descripción
           const url = `${PROXY_BASE}/articulos/${codigo}`;
           let res = await fetch(url);
           if (res.ok) {
@@ -563,6 +588,7 @@
         }
         if (art) {
           productoDetalle = art;
+          mostrarSpinner("Cargando producto...");
           await renderResults();
         }
         return;
@@ -571,7 +597,6 @@
       if (e.target.id === "volverBtn") {
         productoDetalle = null;
         await renderResults();
-        // Restaurar búsqueda en input
         document.getElementById("searchInput").value = ultimaBusqueda;
         return;
       }
@@ -584,7 +609,6 @@
         if (card) card.click();
       }
     });
-
   </script>
 </body>
 </html>
