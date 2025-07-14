@@ -3,75 +3,122 @@
 <head>
   <meta charset="UTF-8">
   <title>Descargar Excel ATOSA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; margin: 2em; max-width: 500px; }
+    label { display: block; margin-top: 1.2em; }
+    select, button { font-size: 1.1em; margin-top: 0.3em; }
+    #msg { margin-top: 1em; color: #005; font-weight: bold; }
+    @media (max-width: 600px) {
+      body { margin: 1em; }
+      select, button { width: 100%; }
+    }
+  </style>
 </head>
 <body>
   <h2>Descargar Excel por grupo</h2>
-  <label>Grupo:
-    <select id="grupo"></select>
+  <label>
+    Grupo:
+    <select id="grupo">
+      <option value="">Cargando grupos...</option>
+    </select>
   </label>
-  <label>Idioma:
+  <label>
+    Idioma:
     <select id="idioma">
       <option value="Español">Español</option>
       <option value="Inglés">Inglés</option>
     </select>
   </label>
-  <button onclick="descargar()">Descargar Excel</button>
+  <button id="descargarBtn" onclick="descargar()" disabled>Descargar Excel</button>
   <div id="msg"></div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
-    // URL RAW de tu grupos.xlsx en GitHub
-    const GRUPOS_XLSX_URL = "const GRUPOS_XLSX_URL = "https://raw.githubusercontent.com/sanatosa/proxy/main/grupos.xlsx";";
-    // Cambia por tu usuario/repo/ruta real
+    const GRUPOS_XLSX_URL = "https://proxy-8i4b.onrender.com/grupos.xlsx";
 
-    // Cargar los grupos
     async function cargarGrupos() {
+      const msg = document.getElementById('msg');
+      const select = document.getElementById("grupo");
       try {
         const resp = await fetch(GRUPOS_XLSX_URL);
+        if (!resp.ok) throw new Error("No se pudo descargar el archivo de grupos.");
         const data = await resp.arrayBuffer();
         const workbook = XLSX.read(data, {type: "array"});
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const grupos = XLSX.utils.sheet_to_json(sheet);
-        const select = document.getElementById("grupo");
-        // Limpiar y rellenar opciones únicas
-        select.innerHTML = "";
+
+        // Extrae lista única de grupos
         const grupoSet = new Set();
         grupos.forEach(row => {
-          if (row.grupo && !grupoSet.has(row.grupo)) {
-            grupoSet.add(row.grupo);
-            const opt = document.createElement("option");
-            opt.value = row.grupo;
-            opt.textContent = row.grupo;
-            select.appendChild(opt);
-          }
+          if (row.grupo && typeof row.grupo === "string" && row.grupo.trim())
+            grupoSet.add(row.grupo.trim());
         });
+
+        select.innerHTML = "";
+        if (grupoSet.size === 0) {
+          select.innerHTML = '<option value="">No hay grupos en el archivo</option>';
+          msg.textContent = "No se encontraron grupos en el archivo.";
+          document.getElementById('descargarBtn').disabled = true;
+          return;
+        }
+
+        select.innerHTML = '<option value="">-- Elige un grupo --</option>';
+        grupoSet.forEach(grupo => {
+          const opt = document.createElement("option");
+          opt.value = grupo;
+          opt.textContent = grupo;
+          select.appendChild(opt);
+        });
+        document.getElementById('descargarBtn').disabled = false;
+        msg.textContent = "";
       } catch (err) {
-        document.getElementById('msg').textContent = "Error cargando grupos: " + err.message;
+        select.innerHTML = '<option value="">Error cargando grupos</option>';
+        msg.textContent = "Error: " + err.message;
+        document.getElementById('descargarBtn').disabled = true;
       }
     }
-    cargarGrupos();
 
     async function descargar() {
-      document.getElementById('msg').textContent = 'Generando...';
       const grupo = document.getElementById('grupo').value;
       const idioma = document.getElementById('idioma').value;
-      const resp = await fetch('https://proxy-8i4b.onrender.com/api/genera-excel', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({grupo, idioma})
-      });
-      if(resp.ok){
-        const blob = await resp.blob();
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `listado_${grupo}.xlsx`;
-        link.click();
-        document.getElementById('msg').textContent = '¡Descarga lista!';
-      } else {
-        let err;
-        try { err = await resp.json(); } catch { err = {}; }
-        document.getElementById('msg').textContent = "Error: " + (err.error || 'Error');
+      const msg = document.getElementById('msg');
+
+      if (!grupo) {
+        msg.textContent = "Por favor, selecciona un grupo.";
+        return;
+      }
+
+      msg.textContent = 'Generando Excel...';
+      document.getElementById('descargarBtn').disabled = true;
+
+      try {
+        const resp = await fetch('https://proxy-8i4b.onrender.com/api/genera-excel', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({grupo, idioma})
+        });
+        if(resp.ok){
+          const blob = await resp.blob();
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `listado_${grupo}.xlsx`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          msg.textContent = '¡Descarga lista!';
+        } else {
+          let err;
+          try { err = await resp.json(); } catch { err = {}; }
+          msg.textContent = "Error: " + (err.error || 'Error generando el Excel');
+        }
+      } catch(e) {
+        msg.textContent = "Error de red: " + e.message;
+      } finally {
+        document.getElementById('descargarBtn').disabled = false;
       }
     }
+
+    cargarGrupos();
   </script>
 </body>
 </html>
