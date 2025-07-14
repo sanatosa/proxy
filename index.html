@@ -282,13 +282,17 @@
       let results = [];
       // Si es código numérico exacto, buscar por código
       if (/^\d+$/.test(termino.trim())) {
-        let url = `${PROXY_BASE}/articulos/${termino}`;
-        let res = await fetch(url);
-        if (res.ok) {
-          let art = await res.json();
-          if (art && art.codigo) results = [art];
-        }
-      }
+  let url = `${PROXY_BASE}/articulos/${termino}`;
+  let res = await fetch(url);
+  if (res.ok) {
+    let art = await res.json();
+    if (Array.isArray(art)) {
+      results = art;
+    } else if (art && art.codigo) {
+      results = [art];
+    }
+  }
+}
       // Además, buscar por patrón en la descripción
       let url = `${PROXY_BASE}/articulos/descripcion/${encodeURIComponent(termino)}`;
       let res = await fetch(url);
