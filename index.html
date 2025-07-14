@@ -1,310 +1,573 @@
-<script>
-  // === CONFIGURA AQUÍ TU PROXY RENDER ===
-  const PROXY_BASE = "https://proxy-8i4b.onrender.com/proxy";
-  const LIMITE_RESULTADOS = 30; // Cambia este número si quieres más o menos
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Buscador de Artículos ATOSA</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <style>
+    body {
+      font-family: system-ui, Arial, sans-serif;
+      background: #fafafc;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 650px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+    h1 {
+      font-size: 1.6rem;
+      margin: 1.3rem 0 0.8rem 0;
+      color: #222;
+      text-align: center;
+    }
+    #searchForm {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    #searchInput {
+      flex: 1 1 250px;
+      padding: 0.6rem;
+      border: 1px solid #bbb;
+      border-radius: 4px;
+      font-size: 1rem;
+      max-width: 330px;
+    }
+    #searchForm button {
+      padding: 0.6rem 1.3rem;
+      background: #4276c6;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #searchForm button:hover,
+    #searchForm button:focus {
+      background: #295ea8;
+    }
+    #results {
+      margin-top: 1rem;
+    }
+    .result, .similares-result {
+      background: #fff;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+      box-shadow: 0 1px 5px #0001;
+      padding: 0.4rem 0.7rem;
+      cursor: pointer;
+      transition: box-shadow 0.2s, transform 0.1s;
+      outline: none;
+      min-height: 68px;
+    }
+    .result:active, .result:focus,
+    .similares-result:active, .similares-result:focus {
+      box-shadow: 0 2px 16px #0002;
+      transform: scale(1.015);
+    }
+    .result img, .similares-result img {
+      width: 60px;
+      height: 45px;
+      object-fit: contain;
+      margin-right: 14px;
+      background: #f3f3f3;
+      border-radius: 6px;
+      flex-shrink: 0;
+    }
+    .result-info, .similares-info {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .result-title, .similares-title {
+      font-weight: 600;
+      color: #2a2a2a;
+      font-size: 1.08rem;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .result-code, .similares-code {
+      font-size: 0.98rem;
+      color: #4176c6;
+      margin-bottom: 1px;
+    }
+    .result-stock, .similares-stock-ok, .similares-stock-zero, .detalle-stock-ok, .detalle-stock-zero {
+      font-size: 0.97rem;
+    }
+    .stock-zero, .similares-stock-zero, .detalle-stock-zero {
+      color: #bb2323;
+      font-weight: bold;
+    }
+    .stock-ok, .similares-stock-ok, .detalle-stock-ok {
+      color: #228022;
+    }
+    .no-result, .error-msg {
+      text-align: center;
+      color: #888;
+      margin: 2.5rem 0 1.5rem 0;
+      font-size: 1.1rem;
+    }
+    .error-msg {
+      color: #bb2323;
+      font-weight: bold;
+    }
+    /* Panel detalle */
+    .detalle-panel {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 12px #0002;
+      margin-bottom: 1.2rem;
+      padding: 1.1rem 1rem 1rem 1rem;
+      position: relative;
+      text-align: center;
+      animation: fadeIn 0.17s;
+    }
+    .detalle-imagen {
+      width: 120px;
+      height: 90px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: #f3f3f3;
+      margin-bottom: 0.7rem;
+    }
+    .detalle-nombre {
+      font-size: 1.19rem;
+      font-weight: bold;
+      margin-bottom: 0.3rem;
+      color: #1a1a21;
+      word-break: break-word;
+    }
+    .detalle-codigo {
+      color: #4176c6;
+      margin-bottom: 0.7rem;
+      font-size: 1.07rem;
+      font-weight: 500;
+    }
+    .detalle-cerrar {
+      position: absolute;
+      top: 0.7rem;
+      right: 0.7rem;
+      border: none;
+      background: #eee;
+      color: #444;
+      border-radius: 50%;
+      width: 1.9em;
+      height: 1.9em;
+      font-size: 1.1em;
+      cursor: pointer;
+      transition: background 0.2s;
+      z-index: 10;
+    }
+    .detalle-cerrar:hover, .detalle-cerrar:focus {
+      background: #ffefef;
+    }
+    /* Similares */
+    .similares-lista {
+      margin-top: 0.7rem;
+      background: #f7faff;
+      border-radius: 9px;
+      padding: 0.7rem 0.5rem 0.2rem 0.5rem;
+      box-shadow: 0 1px 5px #0001;
+      animation: fadeIn 0.15s;
+    }
+    .similares-titulo {
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: #295ea8;
+      margin-bottom: 0.5em;
+      margin-left: 4px;
+    }
+    .similares-result {
+      background: #fff;
+      margin-bottom: 0.4rem;
+      border-radius: 8px;
+      padding: 0.4rem 0.7rem;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 1px 3px #0001;
+      min-height: 60px;
+      cursor: pointer;
+      outline: none;
+      transition: box-shadow 0.2s, transform 0.1s;
+    }
+    .similares-result:active,
+    .similares-result:focus {
+      box-shadow: 0 2px 14px #0002;
+      transform: scale(1.015);
+    }
+    .similares-result img {
+      width: 48px;
+      height: 36px;
+      margin-right: 13px;
+      border-radius: 5px;
+    }
+    .similares-info {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .similares-title {
+      font-size: 1.02rem;
+      font-weight: 500;
+      color: #1a1a21;
+      margin-bottom: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .similares-code {
+      font-size: 0.93rem;
+      color: #4176c6;
+      margin-bottom: 0.5px;
+    }
+    .similares-empty {
+      color: #888;
+      text-align: center;
+      font-size: 0.98rem;
+      margin: 0.7em 0 0.5em 0;
+    }
+    @media (max-width: 600px) {
+      .container {
+        padding: 0.4rem;
+      }
+      .detalle-imagen {
+        width: 90px; height: 70px;
+      }
+      .result img, .similares-result img { width: 45px; height: 34px; }
+      .detalle-panel { padding: 0.8rem 0.3rem 0.8rem 0.3rem; }
+      .similares-lista { padding: 0.6rem 0.1rem 0.2rem 0.1rem; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95);}
+      to { opacity: 1; transform: scale(1);}
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Buscador de Artículos ATOSA</h1>
+    <form id="searchForm" autocomplete="off">
+      <input id="searchInput" type="text" placeholder="Código o descripción (ej: 22913 o pirata)" required autofocus>
+      <button type="submit">Buscar</button>
+    </form>
+    <div id="results"></div>
+  </div>
+  <script>
+    // === CONFIGURA AQUÍ TU PROXY RENDER ===
+    const PROXY_BASE = "https://proxy-8i4b.onrender.com/proxy";
+    const LIMITE_RESULTADOS = 30; // Cambia este número si quieres más o menos
 
-  // Utilidades de normalización y palabras a ignorar para búsqueda de similares
-  const palabras_ignorar = new Set([
-    "disfraz", "disfraces", "b.sol/", "set", "b/sol", "b/sol/cart", "b/slp", "slp", "sol", "b/cart", "cart", "cm",
-    "tubo", "sol/gorra", "niño", "niña", "talla", "adulto", "para", "de", "el", "la", "los",
-    "las", "y", "con", "del", "en", "set", "pack", "un", "una", "por", "a", "m", "l", "s", "xl", "xs", "xxl", "c/v", "bl.", "bl", "xxxl"
-  ].map(x => normaliza(x)));
+    // Utilidades de normalización y palabras a ignorar para búsqueda de similares
+    const palabras_ignorar = new Set([
+      "disfraz", "disfraces", "b.sol/", "set", "b/sol", "b/sol/cart", "b/slp", "slp", "sol", "b/cart", "cart", "cm",
+      "tubo", "sol/gorra", "niño", "niña", "talla", "adulto", "para", "de", "el", "la", "los",
+      "las", "y", "con", "del", "en", "set", "pack", "un", "una", "por", "a", "m", "l", "s", "xl", "xs", "xxl", "c/v", "bl.", "bl", "xxxl"
+    ].map(x => normaliza(x)));
 
-  function normaliza(texto) {
-    return (texto || "")
-      .toString()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase();
-  }
+    function normaliza(texto) {
+      return (texto || "")
+        .toString()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
+    }
 
-  function extraerPalabrasClave(nombre) {
-    return normaliza(nombre)
-      .replace(/[.,;:\/\-]/g, " ")
-      .split(/\s+/)
-      .filter(w => w && !palabras_ignorar.has(w));
-  }
+    function extraerPalabrasClave(nombre) {
+      return normaliza(nombre)
+        .replace(/[.,;:\/\-]/g, " ")
+        .split(/\s+/)
+        .filter(w => w && !palabras_ignorar.has(w));
+    }
 
-  // ==== LLAMADAS A LA API A TRAVÉS DEL PROXY ====
-  async function buscarArticulos(termino) {
-    let results = [];
-    let limiteAlcanzado = false;
+    // ==== LLAMADAS A LA API A TRAVÉS DEL PROXY ====
+    async function buscarArticulos(termino) {
+      let results = [];
+      let limiteAlcanzado = false;
 
-    // Si es código numérico exacto, buscar por código
-    if (/^\d+$/.test(termino.trim())) {
-      let url = `${PROXY_BASE}/articulos/${termino}`;
-      let res = await fetch(url);
-      if (res.ok) {
-        let art = await res.json();
-        if (Array.isArray(art)) {
-          results = art;
-        } else if (art && art.codigo) {
-          results = [art];
-        }
-        // Si solo hay un resultado, buscar similares por descripción
-        if (results.length === 1 && results[0].descripcion) {
-          const desc = results[0].descripcion;
-          let descUrl = `${PROXY_BASE}/articulos/descripcion/${encodeURIComponent(desc)}`;
-          let descRes = await fetch(descUrl);
-          if (descRes.ok) {
-            let descData = await descRes.json();
-            if (Array.isArray(descData)) {
-              // Quitar el artículo principal de la lista de similares y limitar
-              let similares = descData.filter(a => a.codigo !== results[0].codigo);
-              if (similares.length > LIMITE_RESULTADOS) {
-                similares = similares.slice(0, LIMITE_RESULTADOS);
-                limiteAlcanzado = true;
+      // Si es código numérico exacto, buscar por código
+      if (/^\d+$/.test(termino.trim())) {
+        let url = `${PROXY_BASE}/articulos/${termino}`;
+        let res = await fetch(url);
+        if (res.ok) {
+          let art = await res.json();
+          if (Array.isArray(art)) {
+            results = art;
+          } else if (art && art.codigo) {
+            results = [art];
+          }
+          // Si solo hay un resultado, buscar similares por descripción
+          if (results.length === 1 && results[0].descripcion) {
+            const desc = results[0].descripcion;
+            let descUrl = `${PROXY_BASE}/articulos/descripcion/${encodeURIComponent(desc)}`;
+            let descRes = await fetch(descUrl);
+            if (descRes.ok) {
+              let descData = await descRes.json();
+              if (Array.isArray(descData)) {
+                // Quitar el artículo principal de la lista de similares y limitar
+                let similares = descData.filter(a => a.codigo !== results[0].codigo);
+                if (similares.length > LIMITE_RESULTADOS) {
+                  similares = similares.slice(0, LIMITE_RESULTADOS);
+                  limiteAlcanzado = true;
+                }
+                // Guardar similares para panel detalle
+                results[0]._similares = similares;
+                results[0]._limiteSimilares = limiteAlcanzado;
               }
-              // Guardar similares para panel detalle
-              results[0]._similares = similares;
-              results[0]._limiteSimilares = limiteAlcanzado;
             }
           }
         }
       }
+
+      // Además, buscar por patrón en la descripción
+      if (!/^\d+$/.test(termino.trim()) || results.length === 0) {
+        let url = `${PROXY_BASE}/articulos/descripcion/${encodeURIComponent(termino)}`;
+        let res = await fetch(url);
+        if (res.ok) {
+          let data = await res.json();
+          if (Array.isArray(data)) {
+            if (data.length > LIMITE_RESULTADOS) {
+              limiteAlcanzado = true;
+              data = data.slice(0, LIMITE_RESULTADOS);
+            }
+            // Evitar duplicados si coincide por código y descripción
+            const codigos = new Set(results.map(a => a.codigo));
+            for (let a of data) {
+              if (!codigos.has(a.codigo)) results.push(a);
+            }
+          }
+        }
+      }
+      return { results, limiteAlcanzado };
     }
 
-    // Además, buscar por patrón en la descripción
-    if (!/^\d+$/.test(termino.trim()) || results.length === 0) {
-      let url = `${PROXY_BASE}/articulos/descripcion/${encodeURIComponent(termino)}`;
-      let res = await fetch(url);
-      if (res.ok) {
+    // Obtener foto (solo la primera) de un artículo
+    async function getArticuloFoto(codigo) {
+      const url = `${PROXY_BASE}/articulos/foto/${codigo}`;
+      try {
+        let res = await fetch(url);
+        if (!res.ok) return null;
         let data = await res.json();
-        if (Array.isArray(data)) {
-          if (data.length > LIMITE_RESULTADOS) {
-            limiteAlcanzado = true;
-            data = data.slice(0, LIMITE_RESULTADOS);
-          }
-          // Evitar duplicados si coincide por código y descripción
-          const codigos = new Set(results.map(a => a.codigo));
-          for (let a of data) {
-            if (!codigos.has(a.codigo)) results.push(a);
-          }
+        if (data && data.fotos && data.fotos[0]) {
+          return "data:image/jpeg;base64," + data.fotos[0];
+        }
+      } catch (e) { }
+      return null;
+    }
+
+    // ==== ESTADO Y RENDERIZADO ====
+    let ultimosArticulos = [];
+    let panelAbiertoIdx = null;
+    let fotosCache = {}; // {codigo: url}
+    let searchLimiteAlcanzado = false;
+
+    // Renderiza la lista de resultados
+    async function renderResults() {
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "";
+      if (ultimosArticulos.length === 0) return;
+      for (let idx = 0; idx < ultimosArticulos.length; idx++) {
+        let a = ultimosArticulos[idx];
+        // Busca/carga la foto
+        let fotoUrl = fotosCache[a.codigo];
+        if (!fotoUrl) {
+          fotoUrl = await getArticuloFoto(a.codigo) || getSinImagenSVG();
+          fotosCache[a.codigo] = fotoUrl;
+        }
+        if (panelAbiertoIdx === idx) {
+          resultsDiv.innerHTML += await createDetalleConSimilares(a, idx, fotoUrl);
+        } else {
+          resultsDiv.innerHTML += createResultHTML(a, idx, fotoUrl);
         }
       }
-    }
-    return { results, limiteAlcanzado };
-  }
-
-  // Obtener foto (solo la primera) de un artículo
-  async function getArticuloFoto(codigo) {
-    const url = `${PROXY_BASE}/articulos/foto/${codigo}`;
-    try {
-      let res = await fetch(url);
-      if (!res.ok) return null;
-      let data = await res.json();
-      if (data && data.fotos && data.fotos[0]) {
-        return "data:image/jpeg;base64," + data.fotos[0];
-      }
-    } catch (e) { }
-    return null;
-  }
-
-  // ==== ESTADO Y RENDERIZADO ====
-  let ultimosArticulos = [];
-  let panelAbiertoIdx = null;
-  let fotosCache = {}; // {codigo: url}
-  let searchLimiteAlcanzado = false;
-
-  // Renderiza la lista de resultados
-  async function renderResults() {
-    const resultsDiv = document.getElementById("results");
-    resultsDiv.innerHTML = "";
-    if (ultimosArticulos.length === 0) return;
-    for (let idx = 0; idx < ultimosArticulos.length; idx++) {
-      let a = ultimosArticulos[idx];
-      // Busca/carga la foto
-      let fotoUrl = fotosCache[a.codigo];
-      if (!fotoUrl) {
-        fotoUrl = await getArticuloFoto(a.codigo) || getSinImagenSVG();
-        fotosCache[a.codigo] = fotoUrl;
-      }
-      if (panelAbiertoIdx === idx) {
-        resultsDiv.innerHTML += await createDetalleConSimilares(a, idx, fotoUrl);
-      } else {
-        resultsDiv.innerHTML += createResultHTML(a, idx, fotoUrl);
+      // Aviso si hay más resultados de los que se muestran
+      if (searchLimiteAlcanzado) {
+        resultsDiv.innerHTML += `<div class="no-result">Mostrando solo los primeros ${LIMITE_RESULTADOS} resultados. Especifica más tu búsqueda para ver menos artículos.</div>`;
       }
     }
-    // Aviso si hay más resultados de los que se muestran
-    if (searchLimiteAlcanzado) {
-      resultsDiv.innerHTML += `<div class="no-result">Mostrando solo los primeros ${LIMITE_RESULTADOS} resultados. Especifica más tu búsqueda para ver menos artículos.</div>`;
-    }
-  }
 
-  function createResultHTML(articulo, idx, fotoUrl) {
-    const codigo = articulo.codigo || '¿?';
-    const nombre = articulo.descripcion || 'Sin nombre';
-    let stockText = '';
-    let stockClass = '';
-    if (articulo.disponible !== undefined) {
-      if (Number(articulo.disponible) === 0) {
-        stockText = `Disponible: 0`;
-        stockClass = 'stock-zero';
-      } else {
-        stockText = `Disponible: ${articulo.disponible}`;
-        stockClass = 'stock-ok';
-      }
-    }
-    return `
-      <div class="result" data-idx="${idx}" data-codigo="${codigo}" tabindex="0">
-        <img src="${fotoUrl}" alt="Imagen artículo">
-        <div class="result-info">
-          <div class="result-title">${nombre}</div>
-          <div class="result-code">Código: ${codigo}</div>
-          <div class="result-stock ${stockClass}">${stockText}</div>
-        </div>
-      </div>`;
-  }
-
-  async function createDetalleConSimilares(articulo, idx, fotoUrl) {
-    let similares = [];
-    let limiteSimilares = false;
-    // Si la propiedad _similares existe (búsqueda por código), mostrar esos
-    if (Array.isArray(articulo._similares)) {
-      similares = articulo._similares;
-      limiteSimilares = articulo._limiteSimilares;
-    } else {
-      // Si no, comparar con otros de la búsqueda actual
-      const palabrasClave = new Set(extraerPalabrasClave(articulo.descripcion));
-      for (let i = 0; i < ultimosArticulos.length; i++) {
-        if (i === idx) continue;
-        const a2 = ultimosArticulos[i];
-        const palabrasA = new Set(extraerPalabrasClave(a2.descripcion));
-        for (const p of palabrasA) {
-          if (palabrasClave.has(p)) {
-            similares.push({ ...a2, idx: i });
-            break;
-          }
+    function createResultHTML(articulo, idx, fotoUrl) {
+      const codigo = articulo.codigo || '¿?';
+      const nombre = articulo.descripcion || 'Sin nombre';
+      let stockText = '';
+      let stockClass = '';
+      if (articulo.disponible !== undefined) {
+        if (Number(articulo.disponible) === 0) {
+          stockText = `Disponible: 0`;
+          stockClass = 'stock-zero';
+        } else {
+          stockText = `Disponible: ${articulo.disponible}`;
+          stockClass = 'stock-ok';
         }
       }
-    }
-    // Precargar fotos de similares
-    for (let sim of similares) {
-      if (!fotosCache[sim.codigo]) {
-        fotosCache[sim.codigo] = await getArticuloFoto(sim.codigo) || getSinImagenSVG();
-      }
-    }
-    return `
-      <div>
-        ${createDetalleHTML(articulo, fotoUrl)}
-        ${createSimilaresHTML(similares, limiteSimilares)}
-      </div>
-    `;
-  }
-
-  function createDetalleHTML(articulo, fotoUrl) {
-    const codigo = articulo.codigo || '¿?';
-    const nombre = articulo.descripcion || 'Sin nombre';
-    const stock = articulo.disponible !== undefined ? Number(articulo.disponible) : '';
-    const stockClass = stock === 0 ? "detalle-stock-zero" : "detalle-stock-ok";
-    const stockText = stock !== '' ? `Disponible: ${stock}` : '';
-    return `
-      <div class="detalle-panel" data-codigo="${codigo}">
-        <button class="detalle-cerrar" title="Cerrar" aria-label="Cerrar detalle">&times;</button>
-        <img class="detalle-imagen" src="${fotoUrl}" alt="Imagen artículo">
-        <div class="detalle-nombre">${nombre}</div>
-        <div class="detalle-codigo">Código: ${codigo}</div>
-        <div class="${stockClass}">${stockText}</div>
-      </div>
-    `;
-  }
-
-  function createSimilaresHTML(similares, limiteSimilares) {
-    if (!similares.length) {
-      return `<div class="similares-lista"><div class="similares-titulo">Artículos similares</div><div class="similares-empty">No hay similares.</div></div>`;
-    }
-    return `
-    <div class="similares-lista">
-      <div class="similares-titulo">Artículos similares</div>
-      ${similares.map((a, idx) => {
-        const codigo = a.codigo || '¿?';
-        const nombre = a.descripcion || 'Sin nombre';
-        const stock = a.disponible !== undefined ? Number(a.disponible) : '';
-        const stockClass = stock === 0 ? "similares-stock-zero" : "similares-stock-ok";
-        const stockText = stock !== '' ? `Disponible: ${stock}` : '';
-        const fotoUrl = fotosCache[a.codigo] || getSinImagenSVG();
-        return `
-          <div class="similares-result" data-codigo="${codigo}" data-idx="${a.idx ?? ''}" tabindex="0">
-            <img src="${fotoUrl}" alt="Imagen artículo">
-            <div class="similares-info">
-              <div class="similares-title">${nombre}</div>
-              <div class="similares-code">Código: ${codigo}</div>
-              <div class="${stockClass}">${stockText}</div>
-            </div>
+      return `
+        <div class="result" data-idx="${idx}" data-codigo="${codigo}" tabindex="0">
+          <img src="${fotoUrl}" alt="Imagen artículo">
+          <div class="result-info">
+            <div class="result-title">${nombre}</div>
+            <div class="result-code">Código: ${codigo}</div>
+            <div class="result-stock ${stockClass}">${stockText}</div>
           </div>
-        `;
-      }).join('')}
-      ${limiteSimilares ? `<div class="similares-empty">Mostrando solo los primeros ${LIMITE_RESULTADOS} similares.</div>` : ''}
-    </div>`;
-  }
+        </div>`;
+    }
 
-  // SVG "Sin imagen" en base64 (para usar como fallback)
-  function getSinImagenSVG() {
-    return 'data:image/svg+xml;utf8,<svg width="100" height="70" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="%23eee"/><text x="50%" y="50%" font-size="12" fill="%23999" text-anchor="middle" dominant-baseline="middle">Sin imagen</text></svg>';
-  }
+    async function createDetalleConSimilares(articulo, idx, fotoUrl) {
+      let similares = [];
+      let limiteSimilares = false;
+      // Si la propiedad _similares existe (búsqueda por código), mostrar esos
+      if (Array.isArray(articulo._similares)) {
+        similares = articulo._similares;
+        limiteSimilares = articulo._limiteSimilares;
+      } else {
+        // Si no, comparar con otros de la búsqueda actual
+        const palabrasClave = new Set(extraerPalabrasClave(articulo.descripcion));
+        for (let i = 0; i < ultimosArticulos.length; i++) {
+          if (i === idx) continue;
+          const a2 = ultimosArticulos[i];
+          const palabrasA = new Set(extraerPalabrasClave(a2.descripcion));
+          for (const p of palabrasA) {
+            if (palabrasClave.has(p)) {
+              similares.push({ ...a2, idx: i });
+              break;
+            }
+          }
+        }
+      }
+      // Precargar fotos de similares
+      for (let sim of similares) {
+        if (!fotosCache[sim.codigo]) {
+          fotosCache[sim.codigo] = await getArticuloFoto(sim.codigo) || getSinImagenSVG();
+        }
+      }
+      return `
+        <div>
+          ${createDetalleHTML(articulo, fotoUrl)}
+          ${createSimilaresHTML(similares, limiteSimilares)}
+        </div>
+      `;
+    }
 
-  // ==== EVENTOS ====
+    function createDetalleHTML(articulo, fotoUrl) {
+      const codigo = articulo.codigo || '¿?';
+      const nombre = articulo.descripcion || 'Sin nombre';
+      const stock = articulo.disponible !== undefined ? Number(articulo.disponible) : '';
+      const stockClass = stock === 0 ? "detalle-stock-zero" : "detalle-stock-ok";
+      const stockText = stock !== '' ? `Disponible: ${stock}` : '';
+      return `
+        <div class="detalle-panel" data-codigo="${codigo}">
+          <button class="detalle-cerrar" title="Cerrar" aria-label="Cerrar detalle">&times;</button>
+          <img class="detalle-imagen" src="${fotoUrl}" alt="Imagen artículo">
+          <div class="detalle-nombre">${nombre}</div>
+          <div class="detalle-codigo">Código: ${codigo}</div>
+          <div class="${stockClass}">${stockText}</div>
+        </div>
+      `;
+    }
 
-  document.getElementById("searchForm").addEventListener("submit", async function(e){
-    e.preventDefault();
-    const termino = document.getElementById("searchInput").value.trim();
-    const resultsDiv = document.getElementById("results");
-    resultsDiv.innerHTML = "";
-    ultimosArticulos = [];
-    fotosCache = {};
-    panelAbiertoIdx = null;
-    searchLimiteAlcanzado = false;
-    if (!termino) return;
-    resultsDiv.innerHTML = "<div class='no-result'>Buscando...</div>";
-    try {
-      const { results, limiteAlcanzado } = await buscarArticulos(termino);
-      ultimosArticulos = results;
-      searchLimiteAlcanzado = limiteAlcanzado;
-      if (!results.length) {
-        resultsDiv.innerHTML = "<div class='no-result'>No se encontraron resultados.</div>";
+    function createSimilaresHTML(similares, limiteSimilares) {
+      if (!similares.length) {
+        return `<div class="similares-lista"><div class="similares-titulo">Artículos similares</div><div class="similares-empty">No hay similares.</div></div>`;
+      }
+      return `
+      <div class="similares-lista">
+        <div class="similares-titulo">Artículos similares</div>
+        ${similares.map((a, idx) => {
+          const codigo = a.codigo || '¿?';
+          const nombre = a.descripcion || 'Sin nombre';
+          const stock = a.disponible !== undefined ? Number(a.disponible) : '';
+          const stockClass = stock === 0 ? "similares-stock-zero" : "similares-stock-ok";
+          const stockText = stock !== '' ? `Disponible: ${stock}` : '';
+          const fotoUrl = fotosCache[a.codigo] || getSinImagenSVG();
+          return `
+            <div class="similares-result" data-codigo="${codigo}" data-idx="${a.idx ?? ''}" tabindex="0">
+              <img src="${fotoUrl}" alt="Imagen artículo">
+              <div class="similares-info">
+                <div class="similares-title">${nombre}</div>
+                <div class="similares-code">Código: ${codigo}</div>
+                <div class="${stockClass}">${stockText}</div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+        ${limiteSimilares ? `<div class="similares-empty">Mostrando solo los primeros ${LIMITE_RESULTADOS} similares.</div>` : ''}
+      </div>`;
+    }
+
+    // SVG "Sin imagen" en base64 (para usar como fallback)
+    function getSinImagenSVG() {
+      return 'data:image/svg+xml;utf8,<svg width="100" height="70" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="%23eee"/><text x="50%" y="50%" font-size="12" fill="%23999" text-anchor="middle" dominant-baseline="middle">Sin imagen</text></svg>';
+    }
+
+    // ==== EVENTOS ====
+
+    document.getElementById("searchForm").addEventListener("submit", async function(e){
+      e.preventDefault();
+      const termino = document.getElementById("searchInput").value.trim();
+      const resultsDiv = document.getElementById("results");
+      resultsDiv.innerHTML = "";
+      ultimosArticulos = [];
+      fotosCache = {};
+      panelAbiertoIdx = null;
+      searchLimiteAlcanzado = false;
+      if (!termino) return;
+      resultsDiv.innerHTML = "<div class='no-result'>Buscando...</div>";
+      try {
+        const { results, limiteAlcanzado } = await buscarArticulos(termino);
+        ultimosArticulos = results;
+        searchLimiteAlcanzado = limiteAlcanzado;
+        if (!results.length) {
+          resultsDiv.innerHTML = "<div class='no-result'>No se encontraron resultados.</div>";
+          return;
+        }
+        await renderResults();
+      } catch (err) {
+        resultsDiv.innerHTML = "<div class='error-msg'>Error: " + err.message + "</div>";
+      }
+    });
+
+    // Delegado de eventos para click en resultados y similares
+    document.getElementById("results").addEventListener("click", async function(e){
+      // ¿Clic en un resultado pequeño?
+      let card = e.target.closest('.result');
+      if (card) {
+        let idx = card.getAttribute('data-idx');
+        if (idx == null) return;
+        panelAbiertoIdx = Number(idx);
+        await renderResults();
         return;
       }
-      await renderResults();
-    } catch (err) {
-      resultsDiv.innerHTML = "<div class='error-msg'>Error: " + err.message + "</div>";
-    }
-  });
+      // ¿Clic en un similar dentro del panel?
+      let similar = e.target.closest('.similares-result');
+      if (similar) {
+        let idx = similar.getAttribute('data-idx');
+        if (idx == null || idx === "") return;
+        panelAbiertoIdx = Number(idx);
+        await renderResults();
+        return;
+      }
+      // ¿Clic en cerrar el panel?
+      let btnCerrar = e.target.closest('.detalle-cerrar');
+      if (btnCerrar) {
+        panelAbiertoIdx = null;
+        await renderResults();
+        return;
+      }
+    });
 
-  // Delegado de eventos para click en resultados y similares
-  document.getElementById("results").addEventListener("click", async function(e){
-    // ¿Clic en un resultado pequeño?
-    let card = e.target.closest('.result');
-    if (card) {
-      let idx = card.getAttribute('data-idx');
-      if (idx == null) return;
-      panelAbiertoIdx = Number(idx);
-      await renderResults();
-      return;
-    }
-    // ¿Clic en un similar dentro del panel?
-    let similar = e.target.closest('.similares-result');
-    if (similar) {
-      let idx = similar.getAttribute('data-idx');
-      if (idx == null || idx === "") return;
-      panelAbiertoIdx = Number(idx);
-      await renderResults();
-      return;
-    }
-    // ¿Clic en cerrar el panel?
-    let btnCerrar = e.target.closest('.detalle-cerrar');
-    if (btnCerrar) {
-      panelAbiertoIdx = null;
-      await renderResults();
-      return;
-    }
-  });
+    // Accesibilidad: enter/espacio
+    document.getElementById("results").addEventListener("keydown", function(e){
+      if (e.key === "Enter" || e.key === " ") {
+        let card = e.target.closest('.result');
+        if (card) card.click();
+      }
+    });
 
-  // Accesibilidad: enter/espacio
-  document.getElementById("results").addEventListener("keydown", function(e){
-    if (e.key === "Enter" || e.key === " ") {
-      let card = e.target.closest('.result');
-      if (card) card.click();
-    }
-  });
-
-</script>
+  </script>
+</body>
+</html>
