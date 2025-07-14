@@ -66,21 +66,61 @@
       transition: box-shadow 0.2s, transform 0.1s;
       outline: none;
       min-height: 68px;
+      position: relative;
     }
     .result:active, .result:focus,
     .similares-result:active, .similares-result:focus {
       box-shadow: 0 2px 16px #0002;
       transform: scale(1.015);
     }
+    .img-wrapper {
+      position: relative;
+      display: inline-block;
+    }
     .result img, .similares-result img {
       width: 60px;
       height: 45px;
       object-fit: contain;
-      margin-right: 14px;
       background: #f3f3f3;
       border-radius: 6px;
       flex-shrink: 0;
       background: #f3f3f3 url('data:image/svg+xml;utf8,<svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="15" cy="15" r="13" stroke="%23bbb" stroke-width="4" stroke-dasharray="30 30" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 15 15" to="360 15 15" dur="1s" repeatCount="indefinite"/></circle></svg>') center/20px no-repeat;
+      margin-right: 14px;
+      transition: opacity 0.2s;
+    }
+    .recarga-btn {
+      display: none;
+      position: absolute;
+      right: 9px;
+      bottom: 7px;
+      background: #fff;
+      border-radius: 50%;
+      border: 1.5px solid #4276c6;
+      box-shadow: 0 1.5px 4px #0002;
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      z-index: 2;
+      transition: background 0.17s;
+    }
+    .recarga-btn svg {
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+      fill: #295ea8;
+    }
+    .img-wrapper.fallo .recarga-btn {
+      display: flex;
+    }
+    .recarga-btn:active {
+      background: #e3eefe;
+    }
+    .img-wrapper.reloading img {
+      opacity: 0.4;
+      filter: grayscale(0.6);
     }
     .result-info, .similares-info {
       flex: 1 1 auto;
@@ -293,7 +333,7 @@
   <script>
     const PROXY_BASE = "https://proxy-8i4b.onrender.com/proxy";
     const LIMITE_RESULTADOS = 30;
-    const MAX_CONCURRENCY = 2; // <= Aquí limitamos a 2 imágenes a la vez
+    const MAX_CONCURRENCY = 2;
 
     const palabras_ignorar = new Set([
       "disfraz", "disfraces", "b.sol/", "set", "b/sol", "b/sol/cart", "b/slp", "slp", "sol", "b/cart", "cart", "cm",
@@ -413,6 +453,10 @@
       });
     }
 
+    function isSinImagen(src) {
+      return src && src.startsWith('data:image/svg+xml;utf8,<svg');
+    }
+
     async function renderResults() {
       const resultsDiv = document.getElementById("results");
       resultsDiv.innerHTML = "";
@@ -439,9 +483,15 @@
           }
         }
         const imgId = `img-${codigo || 'idx' + idx}`;
+        const wrapperId = `imgwrap-${codigo || 'idx' + idx}`;
         return `
         <div class="result" data-idx="${idx}" data-codigo="${codigo}" tabindex="0">
-          <img id="${imgId}" src="" alt="Imagen artículo">
+          <span class="img-wrapper" id="${wrapperId}">
+            <img id="${imgId}" src="" alt="Imagen artículo">
+            <button class="recarga-btn" title="Reintentar imagen" data-imgid="${imgId}" tabindex="-1" type="button" aria-label="Reintentar imagen" style="display:none;">
+              <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6a6 6 0 01-11.94 1h-2.02A8 8 0 1020 13c0-4.42-3.58-8-8-8z"/></svg>
+            </button>
+          </span>
           <div class="result-info">
             <div class="result-title">${nombre}</div>
             <div class="result-code">Código: ${codigo || "¿?"}</div>
@@ -456,7 +506,10 @@
       let tareas = ultimosArticulos.map((a, idx) => async () => {
         const codigo = a.codigo ? String(a.codigo) : '';
         const imgId = `img-${codigo || 'idx' + idx}`;
+        const wrapperId = `imgwrap-${codigo || 'idx' + idx}`;
         const img = document.getElementById(imgId);
+        const wrapper = document.getElementById(wrapperId);
+        const recargaBtn = wrapper ? wrapper.querySelector('.recarga-btn') : null;
         if (!img) return;
         let cacheKey = codigo || ('idx' + idx);
         let fotoUrl = fotosCache[cacheKey];
@@ -465,8 +518,44 @@
           fotosCache[cacheKey] = fotoUrl;
         }
         img.src = fotoUrl;
+
+        // Mostrar botón recarga si es SVG
+        setTimeout(() => {
+          if (isSinImagen(img.src) && recargaBtn && wrapper) {
+            wrapper.classList.add('fallo');
+            recargaBtn.style.display = 'flex';
+          } else if (recargaBtn && wrapper) {
+            wrapper.classList.remove('fallo');
+            recargaBtn.style.display = 'none';
+          }
+        }, 60);
       });
       cargarImagenesConLimite(tareas, MAX_CONCURRENCY);
+    }
+
+    async function reintentarImagen(imgId) {
+      const img = document.getElementById(imgId);
+      if (!img) return;
+      const wrapper = img.parentElement;
+      if (!wrapper) return;
+      const codigo = imgId.replace(/^img-/, '').replace(/^idx/, '');
+      wrapper.classList.add('reloading');
+      img.src = ''; // Limpia para forzar recarga
+      let fotoUrl = await getArticuloFoto(codigo) || getSinImagenSVG();
+      img.src = fotoUrl;
+      setTimeout(() => { wrapper.classList.remove('reloading'); }, 800);
+
+      // Si aún no carga, vuelve a mostrar recarga
+      setTimeout(() => {
+        const recargaBtn = wrapper.querySelector('.recarga-btn');
+        if (isSinImagen(img.src)) {
+          wrapper.classList.add('fallo');
+          if (recargaBtn) recargaBtn.style.display = 'flex';
+        } else {
+          wrapper.classList.remove('fallo');
+          if (recargaBtn) recargaBtn.style.display = 'none';
+        }
+      }, 400);
     }
 
     async function createDetallePantalla(articulo) {
@@ -584,6 +673,14 @@
       }
     });
     document.getElementById("results").addEventListener("click", async function(e){
+      // Botón recarga imagen
+      if (e.target.closest && e.target.closest('.recarga-btn')) {
+        e.stopPropagation();
+        const btn = e.target.closest('.recarga-btn');
+        const imgId = btn.getAttribute('data-imgid');
+        await reintentarImagen(imgId);
+        return;
+      }
       let card = e.target.closest('.result');
       if (card) {
         let idx = card.getAttribute('data-idx');
