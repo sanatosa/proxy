@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Test Excel ATOSA</title>
+</head>
+<body>
+  <h2>Descargar Excel por grupo</h2>
+  <input id="grupo" value="NOMBRE_DEL_GRUPO">
+  <select id="idioma">
+    <option value="Español">Español</option>
+    <option value="Inglés">Inglés</option>
+  </select>
+  <button onclick="descargar()">Descargar Excel</button>
+  <div id="msg"></div>
+  <script>
+    async function descargar() {
+      document.getElementById('msg').textContent = 'Generando...';
+      const grupo = document.getElementById('grupo').value;
+      const idioma = document.getElementById('idioma').value;
+      const resp = await fetch('https://proxy-8i4b.onrender.com/api/genera-excel', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({grupo, idioma})
+      });
+      if(resp.ok){
+        const blob = await resp.blob();
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `listado_${grupo}.xlsx`;
+        link.click();
+        document.getElementById('msg').textContent = '¡Descarga lista!';
+      } else {
+        let err;
+        try { err = await resp.json(); } catch { err = {}; }
+        document.getElementById('msg').textContent = "Error: " + (err.error || 'Error');
+      }
+    }
+  </script>
+</body>
+</html>
