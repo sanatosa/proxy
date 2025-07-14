@@ -5,7 +5,6 @@
   <title>Buscador de Artículos ATOSA</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <style>
-    /* ... MISMO CSS QUE ANTES ... */
     body {
       font-family: system-ui, Arial, sans-serif;
       background: #fafafc;
@@ -81,7 +80,6 @@
       background: #f3f3f3;
       border-radius: 6px;
       flex-shrink: 0;
-      /* Opcional: mini-spinner mientras carga */
       background: #f3f3f3 url('data:image/svg+xml;utf8,<svg width="30" height="30" viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="15" cy="15" r="13" stroke="%23bbb" stroke-width="4" stroke-dasharray="30 30" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 15 15" to="360 15 15" dur="1s" repeatCount="indefinite"/></circle></svg>') center/20px no-repeat;
     }
     .result-info, .similares-info {
@@ -122,8 +120,126 @@
       color: #bb2323;
       font-weight: bold;
     }
-    /* ... resto igual ... */
-    /* Pantalla de detalle, spinner, etc... */
+    .pantalla-detalle {
+      margin-top: 1rem;
+      animation: fadeIn 0.18s;
+    }
+    .detalle-full {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 14px #0002;
+      padding: 1.5rem 1.2rem 1.4rem 1.2rem;
+      margin-bottom: 1.4rem;
+      text-align: center;
+      position: relative;
+    }
+    .detalle-img-grande {
+      width: 220px;
+      height: 160px;
+      object-fit: contain;
+      border-radius: 12px;
+      background: #f3f3f3;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 1px 7px #0001;
+      max-width: 98vw;
+    }
+    .detalle-nombre {
+      font-size: 1.33rem;
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      color: #1a1a21;
+      word-break: break-word;
+    }
+    .detalle-codigo {
+      color: #4176c6;
+      margin-bottom: 0.7rem;
+      font-size: 1.09rem;
+      font-weight: 500;
+    }
+    .detalle-stock-ok, .detalle-stock-zero {
+      font-size: 1.05rem;
+      margin-bottom: 0.6em;
+    }
+    .volver-btn {
+      display: inline-block;
+      margin-bottom: 1.2rem;
+      background: #eee;
+      color: #295ea8;
+      font-size: 1rem;
+      border: none;
+      border-radius: 5px;
+      padding: 0.45em 1.1em;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    .volver-btn:hover,
+    .volver-btn:focus {
+      background: #e1eaff;
+    }
+    .similares-lista {
+      margin-top: 0.7rem;
+      background: #f7faff;
+      border-radius: 9px;
+      padding: 0.7rem 0.5rem 0.2rem 0.5rem;
+      box-shadow: 0 1px 5px #0001;
+      animation: fadeIn 0.15s;
+    }
+    .similares-titulo {
+      font-size: 1.05rem;
+      font-weight: 500;
+      color: #295ea8;
+      margin-bottom: 0.5em;
+      margin-left: 4px;
+    }
+    .similares-result {
+      background: #fff;
+      margin-bottom: 0.4rem;
+      border-radius: 8px;
+      padding: 0.4rem 0.7rem;
+      display: flex;
+      align-items: center;
+      box-shadow: 0 1px 3px #0001;
+      min-height: 60px;
+      cursor: pointer;
+      outline: none;
+      transition: box-shadow 0.2s, transform 0.1s;
+    }
+    .similares-result:active,
+    .similares-result:focus {
+      box-shadow: 0 2px 14px #0002;
+      transform: scale(1.015);
+    }
+    .similares-result img {
+      width: 48px;
+      height: 36px;
+      margin-right: 13px;
+      border-radius: 5px;
+    }
+    .similares-info {
+      min-width: 0;
+      flex: 1 1 auto;
+    }
+    .similares-title {
+      font-size: 1.02rem;
+      font-weight: 500;
+      color: #1a1a21;
+      margin-bottom: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .similares-code {
+      font-size: 0.93rem;
+      color: #4176c6;
+      margin-bottom: 0.5px;
+    }
+    .similares-empty {
+      color: #888;
+      text-align: center;
+      font-size: 0.98rem;
+      margin: 0.7em 0 0.5em 0;
+    }
     .spinner-container {
       display: flex;
       flex-direction: column;
@@ -150,6 +266,18 @@
       .container {
         padding: 0.4rem;
       }
+      .detalle-img-grande {
+        width: 97vw;
+        height: 31vw;
+        min-height: 60px;
+        max-width: 97vw;
+      }
+      .detalle-full { padding: 1.1rem 0.25rem 1.1rem 0.25rem;}
+      .similares-lista { padding: 0.6rem 0.1rem 0.2rem 0.1rem; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95);}
+      to { opacity: 1; transform: scale(1);}
     }
   </style>
 </head>
@@ -183,7 +311,6 @@
         .split(/\s+/)
         .filter(w => w && !palabras_ignorar.has(w));
     }
-
     async function buscarArticulos(termino) {
       let results = [];
       let limiteAlcanzado = false;
@@ -236,6 +363,7 @@
       return { results, limiteAlcanzado };
     }
     async function getArticuloFoto(codigo) {
+      if (!codigo) return null;
       const url = `${PROXY_BASE}/articulos/foto/${codigo}`;
       try {
         let res = await fetch(url);
@@ -273,9 +401,8 @@
         return;
       }
       if (ultimosArticulos.length === 0) return;
-      // Renderiza todos los resultados de una vez, con imágenes “lazy”
       resultsDiv.innerHTML = ultimosArticulos.map((a, idx) => {
-        const codigo = a.codigo || '¿?';
+        const codigo = a.codigo ? String(a.codigo) : '';
         const nombre = a.descripcion || 'Sin nombre';
         let stockText = '';
         let stockClass = '';
@@ -288,12 +415,13 @@
             stockClass = 'stock-ok';
           }
         }
+        const imgId = `img-${codigo || 'idx' + idx}`;
         return `
         <div class="result" data-idx="${idx}" data-codigo="${codigo}" tabindex="0">
-          <img id="img-${codigo}" src="" alt="Imagen artículo">
+          <img id="${imgId}" src="" alt="Imagen artículo">
           <div class="result-info">
             <div class="result-title">${nombre}</div>
-            <div class="result-code">Código: ${codigo}</div>
+            <div class="result-code">Código: ${codigo || "¿?"}</div>
             <div class="result-stock ${stockClass}">${stockText}</div>
           </div>
         </div>`;
@@ -301,15 +429,16 @@
       if (searchLimiteAlcanzado) {
         resultsDiv.innerHTML += `<div class="no-result">Mostrando solo los primeros ${LIMITE_RESULTADOS} resultados. Especifica más tu búsqueda para ver menos artículos.</div>`;
       }
-      // Carga imágenes en background, progresivamente
-      ultimosArticulos.forEach(async (a) => {
-        const codigo = a.codigo;
-        const img = document.getElementById('img-' + codigo);
+      ultimosArticulos.forEach(async (a, idx) => {
+        const codigo = a.codigo ? String(a.codigo) : '';
+        const imgId = `img-${codigo || 'idx' + idx}`;
+        const img = document.getElementById(imgId);
         if (!img) return;
-        let fotoUrl = fotosCache[codigo];
+        let cacheKey = codigo || ('idx' + idx);
+        let fotoUrl = fotosCache[cacheKey];
         if (!fotoUrl) {
           fotoUrl = await getArticuloFoto(codigo) || getSinImagenSVG();
-          fotosCache[codigo] = fotoUrl;
+          fotosCache[cacheKey] = fotoUrl;
         }
         img.src = fotoUrl;
       });
@@ -318,10 +447,11 @@
     async function createDetallePantalla(articulo) {
       let div = document.createElement("div");
       div.className = "pantalla-detalle";
-      let fotoUrl = fotosCache[articulo.codigo];
+      let cacheKey = articulo.codigo ? String(articulo.codigo) : 'detalle';
+      let fotoUrl = fotosCache[cacheKey] || null;
       if (!fotoUrl) {
         fotoUrl = await getArticuloFoto(articulo.codigo) || getSinImagenSVG();
-        fotosCache[articulo.codigo] = fotoUrl;
+        fotosCache[cacheKey] = fotoUrl;
       }
       div.innerHTML = `
         <button class="volver-btn" id="volverBtn">&larr; Volver</button>
@@ -354,21 +484,23 @@
           }
         }
       }
-      // Renderiza similares progresivamente
       div.querySelector("#similaresContainer").innerHTML = createSimilaresHTML(similares, limiteSimilares);
-      // Carga imágenes de similares
-      similares.forEach(async (a) => {
-        const img = div.querySelector(`#simimg-${a.codigo}`);
+      similares.forEach(async (a, idx) => {
+        const codigo = a.codigo ? String(a.codigo) : '';
+        const imgId = `simimg-${codigo || 'idx' + idx}`;
+        const img = div.querySelector(`#${imgId}`);
         if (!img) return;
-        let fotoUrl = fotosCache[a.codigo];
+        let cacheKey = codigo || ('idx' + idx);
+        let fotoUrl = fotosCache[cacheKey];
         if (!fotoUrl) {
-          fotoUrl = await getArticuloFoto(a.codigo) || getSinImagenSVG();
-          fotosCache[a.codigo] = fotoUrl;
+          fotoUrl = await getArticuloFoto(codigo) || getSinImagenSVG();
+          fotosCache[cacheKey] = fotoUrl;
         }
         img.src = fotoUrl;
       });
       return div;
     }
+
     function createSimilaresHTML(similares, limiteSimilares) {
       if (!similares.length) {
         return `<div class="similares-lista"><div class="similares-titulo">Artículos similares</div><div class="similares-empty">No hay similares.</div></div>`;
@@ -377,17 +509,18 @@
       <div class="similares-lista">
         <div class="similares-titulo">Artículos similares</div>
         ${similares.map((a, idx) => {
-          const codigo = a.codigo || '¿?';
+          const codigo = a.codigo ? String(a.codigo) : '';
           const nombre = a.descripcion || 'Sin nombre';
           const stock = a.disponible !== undefined ? Number(a.disponible) : '';
           const stockClass = stock === 0 ? "similares-stock-zero" : "similares-stock-ok";
           const stockText = stock !== '' ? `Disponible: ${stock}` : '';
+          const imgId = `simimg-${codigo || 'idx' + idx}`;
           return `
             <div class="similares-result" data-codigo="${codigo}" tabindex="0">
-              <img id="simimg-${codigo}" src="" alt="Imagen artículo">
+              <img id="${imgId}" src="" alt="Imagen artículo">
               <div class="similares-info">
                 <div class="similares-title">${nombre}</div>
-                <div class="similares-code">Código: ${codigo}</div>
+                <div class="similares-code">Código: ${codigo || "¿?"}</div>
                 <div class="${stockClass}">${stockText}</div>
               </div>
             </div>
