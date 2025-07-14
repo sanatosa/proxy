@@ -293,6 +293,8 @@
   <script>
     const PROXY_BASE = "https://proxy-8i4b.onrender.com/proxy";
     const LIMITE_RESULTADOS = 30;
+    const MAX_CONCURRENCY = 4; // Solo 4 imágenes a la vez
+
     const palabras_ignorar = new Set([
       "disfraz", "disfraces", "b.sol/", "set", "b/sol", "b/sol/cart", "b/slp", "slp", "sol", "b/cart", "cart", "cm",
       "tubo", "sol/gorra", "niño", "niña", "talla", "adulto", "para", "de", "el", "la", "los",
@@ -390,6 +392,27 @@
       `;
     }
 
+    async function cargarImagenesConLimite(tareas, concurrency) {
+      let i = 0;
+      let running = 0;
+      return new Promise(resolve => {
+        function next() {
+          while (running < concurrency && i < tareas.length) {
+            running++;
+            tareas[i++]().finally(() => {
+              running--;
+              if (i === tareas.length && running === 0) {
+                resolve();
+              } else {
+                next();
+              }
+            });
+          }
+        }
+        next();
+      });
+    }
+
     async function renderResults() {
       const resultsDiv = document.getElementById("results");
       resultsDiv.innerHTML = "";
@@ -429,7 +452,8 @@
       if (searchLimiteAlcanzado) {
         resultsDiv.innerHTML += `<div class="no-result">Mostrando solo los primeros ${LIMITE_RESULTADOS} resultados. Especifica más tu búsqueda para ver menos artículos.</div>`;
       }
-      ultimosArticulos.forEach(async (a, idx) => {
+      // Carga imágenes en paralelo pero limitadas
+      let tareas = ultimosArticulos.map((a, idx) => async () => {
         const codigo = a.codigo ? String(a.codigo) : '';
         const imgId = `img-${codigo || 'idx' + idx}`;
         const img = document.getElementById(imgId);
@@ -442,6 +466,7 @@
         }
         img.src = fotoUrl;
       });
+      cargarImagenesConLimite(tareas, MAX_CONCURRENCY);
     }
 
     async function createDetallePantalla(articulo) {
@@ -485,7 +510,8 @@
         }
       }
       div.querySelector("#similaresContainer").innerHTML = createSimilaresHTML(similares, limiteSimilares);
-      similares.forEach(async (a, idx) => {
+      // Carga imágenes de similares en paralelo pero limitadas
+      let tareas = similares.map((a, idx) => async () => {
         const codigo = a.codigo ? String(a.codigo) : '';
         const imgId = `simimg-${codigo || 'idx' + idx}`;
         const img = div.querySelector(`#${imgId}`);
@@ -498,6 +524,7 @@
         }
         img.src = fotoUrl;
       });
+      cargarImagenesConLimite(tareas, MAX_CONCURRENCY);
       return div;
     }
 
