@@ -2,18 +2,54 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Test Excel ATOSA</title>
+  <title>Descargar Excel ATOSA</title>
 </head>
 <body>
   <h2>Descargar Excel por grupo</h2>
-  <input id="grupo" value="NOMBRE_DEL_GRUPO">
-  <select id="idioma">
-    <option value="Español">Español</option>
-    <option value="Inglés">Inglés</option>
-  </select>
+  <label>Grupo:
+    <select id="grupo"></select>
+  </label>
+  <label>Idioma:
+    <select id="idioma">
+      <option value="Español">Español</option>
+      <option value="Inglés">Inglés</option>
+    </select>
+  </label>
   <button onclick="descargar()">Descargar Excel</button>
   <div id="msg"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script>
+    // URL RAW de tu grupos.xlsx en GitHub
+    const GRUPOS_XLSX_URL = "https://raw.githubusercontent.com/tuusuario/turepo/main/grupos.xlsx";
+    // Cambia por tu usuario/repo/ruta real
+
+    // Cargar los grupos
+    async function cargarGrupos() {
+      try {
+        const resp = await fetch(GRUPOS_XLSX_URL);
+        const data = await resp.arrayBuffer();
+        const workbook = XLSX.read(data, {type: "array"});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const grupos = XLSX.utils.sheet_to_json(sheet);
+        const select = document.getElementById("grupo");
+        // Limpiar y rellenar opciones únicas
+        select.innerHTML = "";
+        const grupoSet = new Set();
+        grupos.forEach(row => {
+          if (row.grupo && !grupoSet.has(row.grupo)) {
+            grupoSet.add(row.grupo);
+            const opt = document.createElement("option");
+            opt.value = row.grupo;
+            opt.textContent = row.grupo;
+            select.appendChild(opt);
+          }
+        });
+      } catch (err) {
+        document.getElementById('msg').textContent = "Error cargando grupos: " + err.message;
+      }
+    }
+    cargarGrupos();
+
     async function descargar() {
       document.getElementById('msg').textContent = 'Generando...';
       const grupo = document.getElementById('grupo').value;
